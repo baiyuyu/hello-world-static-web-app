@@ -1,0 +1,2 @@
+# Videos are uploaded to Azure Blob Storage with scripts/upload-media.ps1, not stored in Git.
+media/videos/

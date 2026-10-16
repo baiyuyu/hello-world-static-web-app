@@ -37,7 +37,9 @@
 │   ├── package.json
 │   └── src/functions/hello.js         # GET /api/hello
 ├── media/                             # 媒体资源（上传到 Blob，不随网站部署）
-│   └── hello-world.svg
+│   ├── hello-world.svg
+│   └── videos/                        # 视频（已在 .gitignore 中忽略，只保留在本地）
+│       └── hello-world-demo.mp4
 ├── scripts/
 │   └── upload-media.ps1               # 上传媒体到 Blob
 └── .github/workflows/deploy.yml       # 网站自动部署（忽略 media/、scripts/、README.md 的改动）
@@ -82,7 +84,31 @@ gh run watch --repo baiyuyu/hello-world-static-web-app --exit-status
 
 > 提示：想立即生效、避免缓存，可用新文件名（如 `banner-v2.jpg`）再更新网页引用。
 >
-> 视频等大文件（尤其超过 100 MB）不要提交到 Git：GitHub 会拒绝。可把它们加入 `.gitignore`，只保留在本地 `media/` 并用脚本上传。`media/` 的改动即使提交推送，也不会触发网站部署。
+> 视频等大文件（尤其超过 100 MB）不要提交到 Git：GitHub 会拒绝。`media/videos/` 已加入 `.gitignore`，视频只保留在本地并用脚本上传。`media/` 的改动即使提交推送，也不会触发网站部署。
+
+### 添加视频（示例：`media/videos/hello-world-demo.mp4`）
+
+1. 把视频放进 `media/videos/`。网页播放建议使用 MP4（H.264 视频 + AAC 音频），并带 `faststart`，这样不用下载完整文件就能开始播放。用 ffmpeg 转码：
+
+   ```powershell
+   ffmpeg -i 原视频.mov -c:v libx264 -crf 23 -pix_fmt yuv420p -c:a aac -movflags +faststart media\videos\my-video.mp4
+   ```
+
+2. 上传（网站不会重新部署）：
+
+   ```powershell
+   .\scripts\upload-media.ps1 media\videos\my-video.mp4
+   ```
+
+3. 在 `site/index.html` 中引用，然后 `git push`：
+
+   ```html
+   <video controls muted playsinline preload="metadata">
+     <source src="https://helloworldmediabaiyuyu.blob.core.windows.net/media/videos/my-video.mp4" type="video/mp4" />
+   </video>
+   ```
+
+   `preload="metadata"` 只预加载时长等信息，用户点播放时才下载视频内容。
 
 ### 上传权限
 
@@ -149,6 +175,10 @@ az storage account create --name helloworldmediabaiyuyu --resource-group rg-hell
 az storage container-rm create --storage-account helloworldmediabaiyuyu --resource-group rg-hello-world-swa `
   --name media --public-access blob
 
+# 让匿名请求使用新版 API，返回 Accept-Ranges 头，视频才能在所有浏览器（含 Safari / iOS）中拖动进度条
+az storage account blob-service-properties update --account-name helloworldmediabaiyuyu --resource-group rg-hello-world-swa `
+  --set defaultServiceVersion=2021-08-06
+
 $uid = az ad signed-in-user show --query id -o tsv
 $scope = az storage account show --name helloworldmediabaiyuyu --resource-group rg-hello-world-swa --query id -o tsv
 az role assignment create --assignee-object-id $uid --assignee-principal-type User --role "Storage Blob Data Contributor" --scope $scope
@@ -181,6 +211,8 @@ gh run watch <run-id> --repo <你的账号>/hello-world-static-web-app --exit-st
 - **部署令牌失效**（Actions 报 `ApiToken is invalid`）：重新执行“从零部署”第 4 步，再重跑工作流。
 - **上传报 403 / AuthorizationPermissionMismatch**：检查是否拥有 Storage Blob Data Contributor 角色，刚授权需等几分钟。
 - **图片显示不出来**：在浏览器直接打开图片的 Blob 地址，确认返回 200；如果是 404，检查文件名和大小写（Blob 名称区分大小写）。
+- **视频能播放但无法拖动进度条**：确认已执行“从零部署”第 5 步中的 `defaultServiceVersion` 设置，可用 `curl.exe -I <视频地址>` 检查是否返回 `Accept-Ranges: bytes`。
+- **视频无法播放**：确认 Content-Type 是 `video/mp4`（脚本会自动设置），且编码是 H.264 + AAC。
 - Pull request 会部署预览环境，关闭 pull request 时会自动清理。
 
 ## 验证部署
@@ -188,12 +220,12 @@ gh run watch <run-id> --repo <你的账号>/hello-world-static-web-app --exit-st
 ```powershell
 $site = "https://brave-rock-0f0f71b03.5.azurestaticapps.net"
 $media = "https://helloworldmediabaiyuyu.blob.core.windows.net/media"
-foreach ($u in "$site/", "$site/api/hello", "$media/hello-world.svg") {
-  "{0}  {1}" -f (Invoke-WebRequest $u -UseBasicParsing).StatusCode, $u
+foreach ($u in "$site/", "$site/api/hello", "$media/hello-world.svg", "$media/videos/hello-world-demo.mp4") {
+  "{0}  {1}" -f (Invoke-WebRequest $u -UseBasicParsing -Method Head).StatusCode, $u
 }
 ```
 
-三个地址都应返回 `200`。
+所有地址都应返回 `200`。
 
 ## 本地运行
 

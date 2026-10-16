@@ -67,3 +67,21 @@ h1 {
   color: #234e82;
   line-height: 1.5;
 }
+
+.video-block {
+  margin: 24px 0 0;
+}
+
+.demo-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: #0b1633;
+}
+
+.video-block figcaption {
+  margin-top: 8px;
+  color: #6b7a90;
+  font-size: 0.875rem;
+}
