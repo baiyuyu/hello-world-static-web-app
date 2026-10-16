@@ -2,6 +2,17 @@
 
 一个最小的 Azure Static Web Apps 示例：HTML 页面和图片作为静态文件发布，页面通过 `/api/hello` 调用独立的 Azure Functions API。
 
+## 当前部署信息
+
+| 项目 | 值 |
+| --- | --- |
+| 网站地址 | https://brave-rock-0f0f71b03.5.azurestaticapps.net |
+| API 地址 | https://brave-rock-0f0f71b03.5.azurestaticapps.net/api/hello |
+| GitHub 仓库 | https://github.com/baiyuyu/hello-world-static-web-app |
+| Azure 资源组 | `rg-hello-world-swa`（West Europe） |
+| Static Web App | `hello-world-swa-baiyuyu`（Free 计划） |
+| GitHub Secret | `AZURE_STATIC_WEB_APPS_API_TOKEN` |
+
 ## 项目结构
 
 ```text
@@ -26,7 +37,59 @@
 - Node.js 22（仅本地运行 API 时需要）
 - Azure Functions Core Tools v4（仅本地运行 API 时需要）
 
-## 首次部署
+## 首次部署（命令行方式，本项目实际使用的方式）
+
+需要安装 [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) 和 [GitHub CLI](https://cli.github.com/)（Windows 可用 `winget install --id GitHub.cli -e`）。
+
+### 1. 登录
+
+```powershell
+az login
+gh auth login --hostname github.com --git-protocol https --web --scopes "repo,workflow"
+```
+
+`gh auth login` 会显示一次性验证码，在 https://github.com/login/device 输入并授权。
+
+### 2. 创建 GitHub 仓库并推送
+
+在本项目目录执行：
+
+```powershell
+gh auth setup-git
+git init -b main
+git add .
+git commit -m "Add Hello World static web app with API"
+gh repo create <你的账号>/hello-world-static-web-app --public --source . --remote origin --push
+```
+
+### 3. 创建 Azure 资源
+
+```powershell
+az group create --name rg-hello-world-swa --location westeurope
+az staticwebapp create --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa --location westeurope --sku Free
+```
+
+输出中的 `defaultHostname` 就是网站地址。
+
+### 4. 把部署令牌写入 GitHub Secret
+
+```powershell
+$token = az staticwebapp secrets list --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa --query properties.apiKey -o tsv
+$token | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN --repo <你的账号>/hello-world-static-web-app
+Remove-Variable token
+```
+
+### 5. 触发部署并查看结果
+
+第 2 步的推送会自动触发 GitHub Actions；如果当时还没设置 Secret，那次运行会失败（`deployment_token was not provided`），重跑即可：
+
+```powershell
+gh run list --repo <你的账号>/hello-world-static-web-app --limit 3
+gh run rerun <run-id> --repo <你的账号>/hello-world-static-web-app
+gh run watch <run-id> --repo <你的账号>/hello-world-static-web-app --exit-status
+```
+
+## 首次部署（Azure Portal 方式，可选）
 
 ### 1. 创建 GitHub 仓库并推送代码
 
@@ -71,7 +134,44 @@ git commit -m "Update Hello World page"
 git push
 ```
 
-每次推送都会启动 GitHub Actions。可在仓库的 **Actions** 页面查看构建和部署日志。Pull request 会部署预览环境；关闭 pull request 时会清理对应的预览环境。
+每次推送都会启动 GitHub Actions。可在仓库的 **Actions** 页面查看构建和部署日志，或用命令行查看：
+
+```powershell
+gh run watch --repo baiyuyu/hello-world-static-web-app --exit-status
+```
+
+不改代码、只想重新部署时，可以手动重跑最近一次运行：
+
+```powershell
+gh run list --repo baiyuyu/hello-world-static-web-app --limit 1
+gh run rerun <run-id> --repo baiyuyu/hello-world-static-web-app
+```
+
+Pull request 会部署预览环境；关闭 pull request 时会清理对应的预览环境。
+
+### 更换图片
+
+把新图片放进 `assets/`，并修改 `index.html` 中 `<img>` 的 `src`（例如 `/assets/my-photo.jpg`），然后提交推送即可。
+
+### 部署令牌失效时
+
+如果重置了令牌或 Actions 报 `ApiToken is invalid`，重新执行“首次部署”第 4 步更新 Secret，再重跑工作流。
+
+## 验证部署
+
+```powershell
+$b = "https://brave-rock-0f0f71b03.5.azurestaticapps.net"
+foreach ($u in "/", "/assets/hello-world.svg", "/api/hello") { (Invoke-WebRequest "$b$u" -UseBasicParsing).StatusCode }
+```
+
+三个地址都应返回 `200`，`/api/hello` 返回 JSON 问候语。
+
+## 删除资源
+
+```powershell
+az group delete --name rg-hello-world-swa --yes
+gh repo delete baiyuyu/hello-world-static-web-app --yes
+```
 
 ## 本地运行
 
