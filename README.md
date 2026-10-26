@@ -33,6 +33,7 @@
 │   ├── index.html                     # 页面结构，图片引用 Blob 地址
 │   ├── styles.css
 │   ├── app.js                         # 显示登录用户、调用后端 API
+│   ├── login.html                     # 登录页（Microsoft / GitHub）
 │   ├── unauthorized.html              # 已登录但未受邀时显示的页面
 │   └── staticwebapp.config.json       # API 运行时、访问权限和路由配置
 ├── api/                               # Azure Functions 后端
@@ -226,29 +227,34 @@ gh run watch <run-id> --repo <你的账号>/hello-world-static-web-app --exit-st
 
 | 规则 | 作用 |
 | --- | --- |
-| `/.auth/login/github` → 404 | 禁用 GitHub 登录，只允许微软账号 |
 | `/login`、`/logout` | 登录 / 退出的友好地址 |
-| `/unauthorized.html` 允许 `anonymous` | “无权限”页面任何人都能看到 |
+| `/login.html`、`/unauthorized.html` 允许 `anonymous` | 登录页和“无权限”页任何人都能看到 |
 | `/*` 只允许 `viewer` | 其余所有页面和 `/api/*` 都需要 `viewer` 角色 |
-| 401 → 跳转 `/.auth/login/aad` | 未登录时自动跳转到微软登录，登录后回到原页面 |
+| 401 → 跳转 `/login.html` | 未登录时显示登录页，可以选择 Microsoft 或 GitHub 账号登录 |
 | 403 → 显示 `unauthorized.html` | 已登录但未受邀时显示“没有访问权限” |
 
 访问流程：
 
 ```text
-未登录 ──► 微软登录 ──► 已受邀（有 viewer 角色）──► 看到网页
-                     └► 未受邀 ──────────────────► “没有访问权限”页面
+未登录 ──► 登录页（Microsoft / GitHub）──► 已受邀（有 viewer 角色）──► 看到网页
+                                       └► 未受邀 ──────────────────► “没有访问权限”页面
 ```
 
 ### 邀请用户
 
 ```powershell
+# 邀请 GitHub 账号（--user-details 填 GitHub 用户名）
+az staticwebapp users invite --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa `
+  --authentication-provider GitHub --user-details <GitHub 用户名> --roles viewer `
+  --domain thankful-moss-0f5c50d03.5.azurestaticapps.net --invitation-expiration-in-hours 168
+
+# 邀请 Microsoft 账号（--user-details 填邮箱）
 az staticwebapp users invite --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa `
   --authentication-provider AAD --user-details someone@example.com --roles viewer `
   --domain thankful-moss-0f5c50d03.5.azurestaticapps.net --invitation-expiration-in-hours 168
 ```
 
-- 命令会输出 `invitationUrl`，把这个链接发给对方。对方打开后用**同一个邮箱**的微软账号登录并同意授权，就获得了 `viewer` 角色。
+- 命令会输出 `invitationUrl`，把链接发给对方。对方打开后用**邀请里指定的那个账号**登录并授权，就获得了 `viewer` 角色。
 - 链接有有效期（最长 168 小时），过期后需要重新生成。
 - Free 和 Standard 计划最多都只能通过邀请给 25 个用户分配角色。
 - 也可以在 Azure Portal 中操作：Static Web App → **Role management** → **Invite**。
@@ -269,7 +275,7 @@ az staticwebapp users update --name hello-world-swa-baiyuyu --resource-group rg-
 ### 注意
 
 - 登录只保护 Static Web Apps 上的网页和 API。Blob 上的图片和视频仍然是公开地址，拿到链接就能访问。
-- 公司租户可能要求管理员批准 “Azure Static Web Apps” 应用才能登录。如果登录时提示 “Need admin approval”，需要联系 IT，或改用个人微软账号测试。
+- **公司账号可能无法登录**：Microsoft 账号登录使用 Azure 提供的共享应用 “Azure Static Web Apps”。如果公司租户不允许员工自行同意应用授权（avanade.com 就是这样），登录时会显示 “Approval required / Request approval”，需要 IT 管理员批准后才能使用。可以先改用 GitHub 账号或个人微软账号（outlook.com 等）。
 
 ## 验证部署
 
@@ -284,7 +290,7 @@ foreach ($u in "$media/hello-world.svg", "$media/videos/hello-world-demo.mp4") {
 }
 ```
 
-未登录时，`/` 和 `/api/hello` 应返回 `302` 并跳转到 `/.auth/login/aad`，`/unauthorized.html` 返回 `200`，媒体地址返回 `200`。
+未登录时，`/` 和 `/api/hello` 应返回 `302` 并跳转到 `/login.html`，`/unauthorized.html` 返回 `200`，媒体地址返回 `200`。
 
 ## 本地运行
 
