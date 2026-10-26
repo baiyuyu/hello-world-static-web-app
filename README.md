@@ -2,12 +2,14 @@
 
 一个最小示例：网页（HTML/CSS/JS）和后端 API 部署在 Azure Static Web Apps，图片、视频等媒体资源放在 Azure Blob Storage。两者**分开部署**：改网页不会重新上传媒体，换图片也不需要重新部署网站。
 
+网站开启了**邀请制登录**：只有被邀请（拥有 `viewer` 角色）的微软账号才能访问网页和 API。
+
 ## 当前部署信息
 
 | 项目 | 值 |
 | --- | --- |
-| 网站地址 | https://brave-rock-0f0f71b03.5.azurestaticapps.net |
-| API 地址 | https://brave-rock-0f0f71b03.5.azurestaticapps.net/api/hello |
+| 网站地址 | https://thankful-moss-0f5c50d03.5.azurestaticapps.net |
+| API 地址 | https://thankful-moss-0f5c50d03.5.azurestaticapps.net/api/hello |
 | 媒体地址前缀 | https://helloworldmediabaiyuyu.blob.core.windows.net/media/ |
 | GitHub 仓库 | https://github.com/baiyuyu/hello-world-static-web-app |
 | Azure 资源组 | `rg-hello-world-swa`（West Europe） |
@@ -30,8 +32,9 @@
 ├── site/                              # 网站内容（只有这个文件夹会部署到 Static Web Apps）
 │   ├── index.html                     # 页面结构，图片引用 Blob 地址
 │   ├── styles.css
-│   ├── app.js                         # 调用后端 API
-│   └── staticwebapp.config.json       # API 运行时和路由配置
+│   ├── app.js                         # 显示登录用户、调用后端 API
+│   ├── unauthorized.html              # 已登录但未受邀时显示的页面
+│   └── staticwebapp.config.json       # API 运行时、访问权限和路由配置
 ├── api/                               # Azure Functions 后端
 │   ├── host.json
 │   ├── package.json
@@ -215,17 +218,73 @@ gh run watch <run-id> --repo <你的账号>/hello-world-static-web-app --exit-st
 - **视频无法播放**：确认 Content-Type 是 `video/mp4`（脚本会自动设置），且编码是 H.264 + AAC。
 - Pull request 会部署预览环境，关闭 pull request 时会自动清理。
 
+## 邀请制登录
+
+### 工作原理
+
+[site/staticwebapp.config.json](site/staticwebapp.config.json) 中的规则（按顺序匹配）：
+
+| 规则 | 作用 |
+| --- | --- |
+| `/.auth/login/github` → 404 | 禁用 GitHub 登录，只允许微软账号 |
+| `/login`、`/logout` | 登录 / 退出的友好地址 |
+| `/unauthorized.html` 允许 `anonymous` | “无权限”页面任何人都能看到 |
+| `/*` 只允许 `viewer` | 其余所有页面和 `/api/*` 都需要 `viewer` 角色 |
+| 401 → 跳转 `/.auth/login/aad` | 未登录时自动跳转到微软登录，登录后回到原页面 |
+| 403 → 显示 `unauthorized.html` | 已登录但未受邀时显示“没有访问权限” |
+
+访问流程：
+
+```text
+未登录 ──► 微软登录 ──► 已受邀（有 viewer 角色）──► 看到网页
+                     └► 未受邀 ──────────────────► “没有访问权限”页面
+```
+
+### 邀请用户
+
+```powershell
+az staticwebapp users invite --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa `
+  --authentication-provider AAD --user-details someone@example.com --roles viewer `
+  --domain thankful-moss-0f5c50d03.5.azurestaticapps.net --invitation-expiration-in-hours 168
+```
+
+- 命令会输出 `invitationUrl`，把这个链接发给对方。对方打开后用**同一个邮箱**的微软账号登录并同意授权，就获得了 `viewer` 角色。
+- 链接有有效期（最长 168 小时），过期后需要重新生成。
+- Free 和 Standard 计划最多都只能通过邀请给 25 个用户分配角色。
+- 也可以在 Azure Portal 中操作：Static Web App → **Role management** → **Invite**。
+
+### 查看、修改与移除用户
+
+```powershell
+# 查看已分配角色的用户
+az staticwebapp users list --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa -o table
+
+# 移除访问权限：把角色改为仅 anonymous（移除 viewer）
+az staticwebapp users update --name hello-world-swa-baiyuyu --resource-group rg-hello-world-swa `
+  --authentication-provider AAD --user-details someone@example.com --roles anonymous
+```
+
+角色变更在用户**下次登录**时生效。已登录的用户可以访问 `/logout` 退出后再重新登录。也可以在 Azure Portal → Static Web App → **Role management** 中直接删除用户。
+
+### 注意
+
+- 登录只保护 Static Web Apps 上的网页和 API。Blob 上的图片和视频仍然是公开地址，拿到链接就能访问。
+- 公司租户可能要求管理员批准 “Azure Static Web Apps” 应用才能登录。如果登录时提示 “Need admin approval”，需要联系 IT，或改用个人微软账号测试。
+
 ## 验证部署
 
 ```powershell
-$site = "https://brave-rock-0f0f71b03.5.azurestaticapps.net"
+$site = "https://thankful-moss-0f5c50d03.5.azurestaticapps.net"
+foreach ($p in "/", "/api/hello", "/unauthorized.html") {
+  "{0,-20} {1}" -f $p, (curl.exe -s -o NUL -w "%{http_code} %{redirect_url}" "$site$p")
+}
 $media = "https://helloworldmediabaiyuyu.blob.core.windows.net/media"
-foreach ($u in "$site/", "$site/api/hello", "$media/hello-world.svg", "$media/videos/hello-world-demo.mp4") {
+foreach ($u in "$media/hello-world.svg", "$media/videos/hello-world-demo.mp4") {
   "{0}  {1}" -f (Invoke-WebRequest $u -UseBasicParsing -Method Head).StatusCode, $u
 }
 ```
 
-所有地址都应返回 `200`。
+未登录时，`/` 和 `/api/hello` 应返回 `302` 并跳转到 `/.auth/login/aad`，`/unauthorized.html` 返回 `200`，媒体地址返回 `200`。
 
 ## 本地运行
 
@@ -242,7 +301,7 @@ npm install -g @azure/static-web-apps-cli
 swa start site --api-devserver-url http://localhost:7071
 ```
 
-打开 CLI 输出的本地地址即可。图片直接从 Blob 加载，本地也能显示。
+打开 CLI 输出的本地地址即可。SWA CLI 会模拟登录：访问 `/.auth/login/aad` 时出现模拟登录表单，在 Roles 中填 `viewer` 即可访问。图片直接从 Blob 加载，本地也能显示。
 
 ## API 响应
 
@@ -254,7 +313,7 @@ swa start site --api-devserver-url http://localhost:7071
 }
 ```
 
-API 使用匿名访问，仅用于演示；不要在其中放置密钥或敏感数据。
+API 只有已受邀的登录用户才能访问（受上面的路由规则保护）；仅用于演示，不要在其中放置密钥或敏感数据。
 
 ## 删除资源
 
