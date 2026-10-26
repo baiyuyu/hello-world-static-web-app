@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>登录</title>
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: Inter, "Segoe UI", sans-serif;
+        color: #18243a;
+        background: #f2f6fb;
+      }
+      main {
+        width: min(100%, 420px);
+        padding: 40px;
+        border: 1px solid #e1e8f0;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 24px 64px rgb(32 58 91 / 12%);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.75rem;
+      }
+      p {
+        margin: 0 0 24px;
+        color: #526176;
+        line-height: 1.7;
+      }
+      a {
+        display: block;
+        margin-top: 12px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        color: #fff;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+      }
+      .microsoft {
+        background: #234e82;
+      }
+      .github {
+        background: #24292f;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>请先登录</h1>
+      <p>本网站仅对受邀用户开放。请使用收到邀请的账号登录。</p>
+      <a class="microsoft" href="/.auth/login/aad?post_login_redirect_uri=/">使用 Microsoft 账号登录</a>
+      <a class="github" href="/.auth/login/github?post_login_redirect_uri=/">使用 GitHub 账号登录</a>
+    </main>
+  </body>
+</html>
