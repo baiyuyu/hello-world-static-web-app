@@ -28,6 +28,23 @@ body {
   box-shadow: 0 24px 64px rgb(32 58 91 / 12%);
 }
 
+.user-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px clamp(24px, 6vw, 48px);
+  border-bottom: 1px solid #e1e8f0;
+  color: #526176;
+  font-size: 0.875rem;
+}
+
+.user-bar a {
+  color: #234e82;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .hero-image {
   display: block;
   width: 100%;

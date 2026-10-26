@@ -4,9 +4,10 @@
 
 .EXAMPLE
   .\scripts\upload-media.ps1                          # upload everything in media\
-  .\scripts\upload-media.ps1 media\hello-world.svg    # upload specific file(s)
+  .\scripts\upload-media.ps1 media\hello-world.svg    # upload specific file(s), separated by spaces
 #>
 param(
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Path,
     [string]$AccountName = "helloworldmediabaiyuyu",
     [string]$Container = "media",
@@ -52,6 +53,7 @@ foreach ($file in $files) {
         --content-type $contentType `
         --content-cache-control $CacheControl `
         --overwrite `
+        --no-progress `
         --auth-mode login `
         --only-show-errors | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Upload failed: $blobName" }

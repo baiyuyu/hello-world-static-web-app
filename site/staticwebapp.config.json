@@ -2,6 +2,23 @@
   "platform": {
     "apiRuntime": "node:22"
   },
+  "routes": [
+    { "route": "/.auth/login/github", "statusCode": 404 },
+    { "route": "/login", "redirect": "/.auth/login/aad" },
+    { "route": "/logout", "redirect": "/.auth/logout" },
+    { "route": "/unauthorized.html", "allowedRoles": ["anonymous"] },
+    { "route": "/*", "allowedRoles": ["viewer"] }
+  ],
+  "responseOverrides": {
+    "401": {
+      "redirect": "/.auth/login/aad?post_login_redirect_uri=.referrer",
+      "statusCode": 302
+    },
+    "403": {
+      "rewrite": "/unauthorized.html",
+      "statusCode": 403
+    }
+  },
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/*.{css,js,svg,png,jpg,jpeg,gif,ico}"]

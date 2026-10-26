@@ -1,4 +1,18 @@
 const apiMessage = document.querySelector("#api-message");
+const userName = document.querySelector("#user-name");
+
+async function loadUser() {
+  try {
+    const response = await fetch("/.auth/me");
+    const { clientPrincipal } = await response.json();
+    userName.textContent = clientPrincipal
+      ? `已登录：${clientPrincipal.userDetails}`
+      : "未登录";
+  } catch (error) {
+    console.error("Unable to load the signed-in user.", error);
+    userName.textContent = "";
+  }
+}
 
 async function loadGreeting() {
   try {
@@ -19,4 +33,5 @@ async function loadGreeting() {
   }
 }
 
+loadUser();
 loadGreeting();

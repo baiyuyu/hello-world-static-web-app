@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>没有访问权限</title>
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: Inter, "Segoe UI", sans-serif;
+        color: #18243a;
+        background: #f2f6fb;
+      }
+      main {
+        max-width: 480px;
+        padding: 40px;
+        border: 1px solid #e1e8f0;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 24px 64px rgb(32 58 91 / 12%);
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.75rem;
+      }
+      p {
+        color: #526176;
+        line-height: 1.7;
+      }
+      a {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        background: #234e82;
+        color: #fff;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>没有访问权限</h1>
+      <p>你已登录，但这个账号还没有被邀请访问本网站。请联系网站管理员获取邀请链接，或换一个已受邀的账号登录。</p>
+      <a href="/.auth/logout">退出并换个账号</a>
+    </main>
+  </body>
+</html>
